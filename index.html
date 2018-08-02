@@ -72,17 +72,20 @@
 	var lat_gps = -25.344;
 	var lng_gps = 131.036;
 
-	function initMap(lat_gps , lng_gps) {
+	function initMap(lat_gps, lng_gps) {
+
+		console.log(lat_gps,lng_gps);
+
 	  // The location of Uluru
-	  if(lat_gps == NaN || lng_gps == NaN){
+	  if(lat_gps == undefined || lng_gps == undefined){
 	  	var uluru = {lat: -25.344, lng: 131.036};
 	  }
 	  else{
-	  	var uluru = {lat: -25.344, lng: 131.036};
+	  	var uluru = {lat: parseFloat(lat_gps), lng: parseFloat(lng_gps)};
 	  }
 	 
 	  // The map, centered at Uluru
-	  console.log(uluru);
+	  // console.log(uluru);
 	  var map = new google.maps.Map(
 	      document.getElementById('map'), {zoom: 4, center: uluru});
 	  // The marker, positioned at Uluru
