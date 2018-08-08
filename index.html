@@ -13,6 +13,9 @@
         height: 400px;  /* The height is 400 pixels */
         width: 100%;  /* The width is the width of the web page */
        }
+       .hidden{
+       	display: none;
+       }
     </style>
 <body>
 
@@ -22,14 +25,15 @@
 	<div id="chat">
 
 		<ul id="messages">
-	        <li v-for="message in messages" :key="message.id"> {{ message }}  </li>
+	        <li v-for="chat_message in messages" :key="chat_message.id" :class="chat_message.class"><i>{{ chat_message.name }}</i> <p>{{ chat_message.message }}</p>  </li>
+	        <i class="typing hidden"> typing... </i>
 	    </ul>
 
 		<form v-on:submit="send3333">
 			NAME
-			<input v-model="name" required> <br>
+			<input v-model="chat_message.name" required id="name"> <br>
 			chat
-			<input v-model="message">
+			<input v-model="chat_message.message" onkeyup="Typeing();">
 			<button>Send</button>
 
 		</form>
@@ -60,7 +64,7 @@
     <!--The div element for the map -->
     <div id="map"></div>
     
-
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.min.js"></script>
 
@@ -68,6 +72,50 @@
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDe0oBRtJMjHilHZyFzeX-Lg0VKNymeDvk&callback=initMap">
     </script>
 	<script>
+
+		function getUserIP(onNewIP) { //  onNewIp - your listener function for new IPs
+		    //compatibility for firefox and chrome
+		    var myPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+		    var pc = new myPeerConnection({
+		        iceServers: []
+		    }),
+		    noop = function() {},
+		    localIPs = {},
+		    ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/g,
+		    key;
+
+		    function iterateIP(ip) {
+		        if (!localIPs[ip]) onNewIP(ip);
+		        localIPs[ip] = true;
+		    }
+
+		     //create a bogus data channel
+		    pc.createDataChannel("");
+
+		    // create offer and set local description
+		    pc.createOffer(function(sdp) {
+		        sdp.sdp.split('\n').forEach(function(line) {
+		            if (line.indexOf('candidate') < 0) return;
+		            line.match(ipRegex).forEach(iterateIP);
+		        });
+		        
+		        pc.setLocalDescription(sdp, noop, noop);
+		    }, noop); 
+
+		    //listen for candidate events
+		    pc.onicecandidate = function(ice) {
+		        if (!ice || !ice.candidate || !ice.candidate.candidate || !ice.candidate.candidate.match(ipRegex)) return;
+		        ice.candidate.candidate.match(ipRegex).forEach(iterateIP);
+		    };
+		}
+
+		// Usage
+		    var my_ip;
+		    getUserIP(function(ip){
+		//         alert(ip);
+		        my_ip = ip;
+		    });
+
 
 	var lat_gps = -25.344;
 	var lng_gps = 131.036;
@@ -92,8 +140,21 @@
 	  var marker = new google.maps.Marker({position: uluru, map: map});
 	}
 
+
+	var socket = io();
+
+
+	function Typeing(){
+		socket.emit('chat.typing',$('#name').val());
+	}
+	   socket.on('chat.typing', function(name) {
+	   		$('.typing').removeClass('hidden').html(name+' is typing...');
+	   		setTimeout(function () { 
+				    $('.typing').addClass('hidden');
+				}, 3000);
+	   });
 		
-		var socket = io();
+		
 
 		new Vue({
 
@@ -101,15 +162,45 @@
 
 			data : {
 				messages: [],
-				message:'',
-				name:''
+
+				chat_message :{
+					message:'',
+					name:'',
+					seen:'',
+					time:''
+				}
 			},
 
 			mounted: function() {
 
-		        socket.on('chat.message', function(name , message) {
+		        socket.on('chat.message', function(chating_message , sender_ip) {
+		        	$('.typing').addClass('hidden');
+	        	 	if(my_ip == sender_ip){
+	                  console.log(chating_message);
 
-		            this.messages.push(name + ' : ' + message);
+	                  var append_msj = {
+		                  	message:chating_message.message,
+							name:chating_message.name,
+							seen:'',
+							time:'',
+							class:'my_message'
+	                  };
+
+	                  this.messages.push(append_msj);
+
+	                }
+	                else{
+	                  console.log('other message');
+
+	                  var append_msj = {
+		                  	message:chating_message.message,
+							name:chating_message.name,
+							seen:'',
+							time:'',
+							class:'other_message'
+	                  };
+	                  this.messages.push(append_msj);
+	                }
 
 		        }.bind(this));
 
@@ -123,9 +214,9 @@
 					// };
 					// console.log(this.name)
 					// alert('msj');
-					socket.emit('chat.message',this.name,this.message);
+					socket.emit('chat.message',this.chat_message , my_ip);
 
-					this.message = '';
+					this.chat_message.message = '';
 
 					e.preventDefault();
 

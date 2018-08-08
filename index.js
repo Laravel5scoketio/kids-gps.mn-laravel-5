@@ -14,10 +14,11 @@ app.get('/', function(request, response) {
 io.on('connection', function(socket){
 
 
-	socket.on('chat.message',function(name, message){
+	socket.on('chat.message',function( message , ip){
 
-		console.log(name + message);
-		io.emit('chat.message',name, message);
+		console.log(message + ip);
+
+		io.emit('chat.message', message,ip);
 
 	});
 
@@ -26,6 +27,11 @@ io.on('connection', function(socket){
 		// console.log(urt + urgun);
 		io.emit('gps.message',urt, urgun);
 
+	});
+
+	socket.on('chat.typing',function(name){
+		console.log('typing...')
+		io.emit('chat.typing',name);
 	});
 
 
